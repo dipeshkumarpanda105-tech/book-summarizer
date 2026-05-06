@@ -48,8 +48,12 @@ const ResultDisplay = ({ results, loading }) => {
     const cards = flashcards.split('\n\n').filter(card => card.trim());
     return cards.map((card, index) => {
       const lines = card.split('\n').filter(line => line.trim());
-      const question = lines.find(line => line.toLowerCase().includes('question:'))?.replace('Question:', '').trim() || `Question ${index + 1}`;
-      const answer = lines.find(line => line.toLowerCase().includes('answer:'))?.replace('Answer:', '').trim() || 'Answer not found';
+      const questionLine = lines.find(line => line.toLowerCase().includes('q:')) || lines.find(line => line.toLowerCase().includes('question:'));
+      const answerLine = lines.find(line => line.toLowerCase().includes('a:')) || lines.find(line => line.toLowerCase().includes('answer:'));
+      
+      const question = questionLine ? questionLine.replace(/^(q:|question:)/i, '').trim() : `Question ${index + 1}`;
+      const answer = answerLine ? answerLine.replace(/^(a:|answer:)/i, '').trim() : 'Answer not found';
+      
       return { question, answer };
     });
   };
@@ -57,13 +61,41 @@ const ResultDisplay = ({ results, loading }) => {
   const formatQA = (qa) => {
     if (!qa) return '';
     
-    const pairs = qa.split('\n\n').filter(pair => pair.trim());
-    return pairs.map((pair, index) => {
-      const lines = pair.split('\n').filter(line => line.trim());
-      const question = lines[0]?.trim() || `Question ${index + 1}`;
-      const answer = lines.slice(1).join(' ').trim() || 'Answer not found';
-      return { question, answer };
+    // Split by numbered question patterns
+    const questions = [];
+    const questionBlocks = qa.split(/^\d+\./m).filter(block => block.trim());
+    
+    questionBlocks.forEach((block, index) => {
+      const lines = block.split('\n').filter(line => line.trim());
+      
+      let question = '';
+      let answer = '';
+      let isAnswer = false;
+      
+      for (const line of lines) {
+        if (line.match(/^[A-D]\)/)) {
+          // This is a multiple choice option, add to question
+          question += '\n' + line;
+        } else if (line.toLowerCase().includes('answer:') || line.toLowerCase().includes('answer:')) {
+          isAnswer = true;
+          answer = line.replace(/\*\*answer:\*\*/i, '').replace(/answer:/i, '').trim();
+        } else if (isAnswer && line.trim()) {
+          answer += ' ' + line;
+        } else if (!isAnswer && line.trim()) {
+          // This is the question part
+          question = question + (question ? ' ' : '') + line;
+        }
+      }
+      
+      if (question) {
+        questions.push({ 
+          question: question.trim(),
+          answer: answer || 'Answer not available' 
+        });
+      }
     });
+    
+    return questions;
   };
 
   const sections = [
@@ -135,6 +167,36 @@ const ResultDisplay = ({ results, loading }) => {
       }
     };
     return colors[color] || colors.blue;
+  };
+
+  const formatContent = (content) => {
+    let formattedContent = content;
+    
+    // Enhanced formatting for better alignment and structure
+    formattedContent = formattedContent.replace(/\*\*Main Objective:\*\*/g, '<h3 class="text-xl font-bold text-gray-900 mb-4">Main Objective</h3>');
+    formattedContent = formattedContent.replace(/\*\*Key Concepts:\*\*/g, '<h3 class="text-xl font-bold text-gray-900 mb-4">Key Concepts</h3>');
+    formattedContent = formattedContent.replace(/\*\*Implementation:\*\*/g, '<h3 class="text-xl font-bold text-gray-900 mb-4">Implementation</h3>');
+    formattedContent = formattedContent.replace(/\*\*Applications\/Conclusion:\*\*/g, '<h3 class="text-xl font-bold text-gray-900 mb-4">Applications & Conclusion</h3>');
+    formattedContent = formattedContent.replace(/\*\*Introduction:\*\*/g, '<h3 class="text-xl font-bold text-gray-900 mb-4">Introduction</h3>');
+    formattedContent = formattedContent.replace(/\*\*Core Concepts:\*\*/g, '<h3 class="text-xl font-bold text-gray-900 mb-4">Core Concepts</h3>');
+    formattedContent = formattedContent.replace(/\*\*Technical Details:\*\*/g, '<h3 class="text-xl font-bold text-gray-900 mb-4">Technical Details</h3>');
+    formattedContent = formattedContent.replace(/\*\*Real-world Applications:\*\*/g, '<h3 class="text-xl font-bold text-gray-900 mb-4">Real-world Applications</h3>');
+    formattedContent = formattedContent.replace(/\*\*Conclusion:\*\*/g, '<h3 class="text-xl font-bold text-gray-900 mb-4">Conclusion</h3>');
+    formattedContent = formattedContent.replace(/\*\*Main Points:\*\*/g, '<h3 class="text-xl font-bold text-gray-900 mb-4">Main Points</h3>');
+    formattedContent = formattedContent.replace(/\*\*Key Points:\*\*/g, '<h3 class="text-xl font-bold text-gray-900 mb-4">Key Points</h3>');
+    formattedContent = formattedContent.replace(/\*\*Applications:\*\*/g, '<h3 class="text-xl font-bold text-gray-900 mb-4">Applications</h3>');
+    formattedContent = formattedContent.replace(/\*\*Types of Learning:\*\*/g, '<h3 class="text-xl font-bold text-gray-900 mb-4">Types of Learning</h3>');
+    
+    // Enhanced bullet point formatting with better alignment
+    formattedContent = formattedContent.replace(/^- \*\*(.+?):\*\*/g, '<li class="ml-6 mb-3 font-semibold text-gray-800"><span class="text-gray-700">$1</span></li>');
+    formattedContent = formattedContent.replace(/^- (.+)/g, '<li class="ml-6 mb-2">$1</li>');
+    formattedContent = formattedContent.replace(/•\s+(.+)/g, '<li class="ml-6 mb-2">$1</li>');
+    
+    // Better line breaks and spacing
+    formattedContent = formattedContent.replace(/\n\n/g, '<br /><br />');
+    formattedContent = formattedContent.replace(/\n/g, '<br />');
+    
+    return formattedContent;
   };
 
   return (
@@ -232,35 +294,51 @@ const ResultDisplay = ({ results, loading }) => {
             {section.content && !section.loading && (
               <div className="animate-fade-in">
                 {section.specialFormat === 'flashcards' ? (
-                  <div className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {formatFlashcards(section.content).map((card, index) => (
-                      <div key={index} className="bg-white p-4 rounded-lg border border-gray-200">
-                        <div className="font-medium text-gray-900 mb-2">
-                          Q: {card.question}
+                      <div key={index} className="bg-white p-6 rounded-lg border border-gray-200 shadow-sm hover:shadow-md transition-shadow">
+                        <div className="font-medium text-blue-700 mb-3">
+                          <span className="text-sm text-blue-500 font-semibold">Q:</span> {card.question}
                         </div>
-                        <div className="text-gray-700">
-                          A: {card.answer}
+                        <div className="text-gray-700 leading-relaxed">
+                          <span className="text-sm text-green-600 font-semibold">A:</span> {card.answer}
                         </div>
                       </div>
                     ))}
                   </div>
                 ) : section.specialFormat === 'qa' ? (
-                  <div className="space-y-4">
+                  <div className="space-y-8">
                     {formatQA(section.content).map((pair, index) => (
-                      <div key={index} className="bg-white p-4 rounded-lg border border-gray-200">
-                        <div className="font-medium text-gray-900 mb-2">
-                          Q{index + 1}: {pair.question}
+                      <div key={index} className="bg-white p-8 rounded-xl border border-gray-200 shadow-md hover:shadow-lg transition-shadow">
+                        <div className="mb-6">
+                          <div className="flex items-center mb-4">
+                            <span className="bg-blue-100 text-blue-800 text-sm font-semibold px-3 py-1 rounded-full mr-3">
+                              Question {index + 1}
+                            </span>
+                            <span className="text-sm text-gray-500">
+                              {pair.question.includes('Multiple Choice') ? 'Multiple Choice' : 
+                               pair.question.includes('Short Answer') ? 'Short Answer' : 'Essay'}
+                            </span>
+                          </div>
+                          <div className="text-lg font-semibold text-gray-900 leading-relaxed whitespace-pre-line">
+                            {pair.question}
+                          </div>
                         </div>
-                        <div className="text-gray-700">
-                          A: {pair.answer}
+                        <div className="border-t border-gray-200 pt-6">
+                          <div className="flex items-center mb-3">
+                            <span className="bg-green-100 text-green-800 text-sm font-semibold px-3 py-1 rounded-full">
+                              Answer
+                            </span>
+                          </div>
+                          <div className="text-gray-700 leading-relaxed whitespace-pre-line">
+                            {pair.answer}
+                          </div>
                         </div>
                       </div>
                     ))}
                   </div>
                 ) : (
-                  <div className={`whitespace-pre-wrap ${colors.text} leading-relaxed`}>
-                    {section.content}
-                  </div>
+                  <div className={`prose prose-lg max-w-none ${colors.text} leading-relaxed`} dangerouslySetInnerHTML={{ __html: formatContent(section.content) }} />
                 )}
               </div>
             )}

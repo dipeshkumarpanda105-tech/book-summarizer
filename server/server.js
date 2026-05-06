@@ -52,6 +52,7 @@ class AIService {
   constructor() {
     this.apiKey = process.env.OPENAI_API_KEY;
     this.apiUrl = process.env.OPENAI_API_URL || 'https://api.openai.com/v1/chat/completions';
+    this.model = process.env.OPENAI_MODEL || 'openai/gpt-3.5-turbo';
     // Maximum tokens for context (leaving room for prompt + output)
     this.maxContextTokens = 12000;
     // Approximate characters per token (conservative estimate)
@@ -65,8 +66,6 @@ class AIService {
       return text;
     }
 
-    console.log(`⚠️ Text too long (${text.length} chars), truncating to ${this.maxTextLength} chars`);
-    
     // Try to truncate at a sentence boundary
     const truncated = text.substring(0, this.maxTextLength);
     const lastSentenceEnd = Math.max(
@@ -76,11 +75,10 @@ class AIService {
     );
     
     if (lastSentenceEnd > this.maxTextLength * 0.8) {
-      // If we can find a sentence end in the last 20%, use that
-      return truncated.substring(0, lastSentenceEnd + 1) + '\n\n[Content truncated due to length...]';
+      return truncated.substring(0, lastSentenceEnd + 1);
     }
     
-    return truncated + '\n\n[Content truncated due to length...]';
+    return truncated;
   }
 
   async makeRequest(prompt, text) {
@@ -90,8 +88,9 @@ class AIService {
       // Truncate text if too long
       const truncatedText = this.truncateText(text);
       
+      // OpenRouter format for Google Gemma
       const response = await axios.post(this.apiUrl, {
-        model: 'openai/gpt-3.5-turbo',
+        model: this.model,
         messages: [
           {
             role: 'system',
@@ -115,17 +114,17 @@ class AIService {
     } catch (error) {
       console.error('AI Service Error:', error.response?.data || error.message);
       
-      // Handle specific OpenAI API errors
+      // Handle specific OpenRouter API errors
       if (error.response?.data?.error) {
         const apiError = error.response.data.error;
         if (apiError.code === 'context_length_exceeded' || apiError.message?.includes('maximum context length')) {
           throw new Error('Text is too long for processing. Please try with a shorter video or document.');
         } else if (apiError.code === 'insufficient_quota') {
-          throw new Error('OpenAI API quota exceeded. Please check your API key billing or add credits to your account.');
+          throw new Error('API quota exceeded. Please check your API key billing or add credits to your account.');
         } else if (apiError.code === 'invalid_api_key') {
-          throw new Error('Invalid OpenAI API key. Please check your API key configuration.');
+          throw new Error('Invalid API key. Please check your API key configuration.');
         } else if (apiError.code === 'rate_limit_exceeded') {
-          throw new Error('OpenAI API rate limit exceeded. Please try again in a few moments.');
+          throw new Error('API rate limit exceeded. Please try again in a few moments.');
         } else {
           throw new Error(`OpenAI API error: ${apiError.message || 'Unknown error'}`);
         }
@@ -137,26 +136,64 @@ class AIService {
 
   async summarizeText(text, type = 'short') {
     const prompt = type === 'short' 
-      ? 'Provide a comprehensive summary of the following text in 200-300 words. Include all main concepts, key findings, and important details. Use clear, well-structured paragraphs with proper formatting.'
-      : 'Provide an extensive detailed summary of the following text in 500-700 words. Include all main arguments, supporting evidence, detailed explanations, and comprehensive analysis. Use proper headings and structured format.';
+      ? `Summarize in 200-250 words:
+
+${text.substring(0, 4000)}`
+      : `Detailed summary 400-500 words:
+
+${text.substring(0, 4000)}`;
     
     return await this.makeRequest(prompt, text);
   }
 
   async extractKeyPoints(text) {
-    const prompt = 'Extract all important key points from the following text and present them as a detailed bulleted list. Each point should be comprehensive and include relevant details. Focus on main concepts, arguments, findings, definitions, examples, and important relationships. Use proper bullet point formatting with sub-points where needed.';
+    const prompt = `Extract key points:
+
+${text.substring(0, 4000)}`;
     
     return await this.makeRequest(prompt, text);
   }
 
   async generateFlashcards(text) {
-    const prompt = 'Generate comprehensive flashcards from the following text. Format each flashcard exactly as "Question: [question]\nAnswer: [answer]". Separate different flashcards with "\n\n". Create 10-15 high-quality questions that test understanding of key concepts, definitions, important details, examples, and applications. Ensure each answer is detailed and informative.';
+    const prompt = `Create 8 flashcards. Format:
+Q: [Question]
+A: [Answer]
+
+Text: ${text.substring(0, 4000)}`;
     
     return await this.makeRequest(prompt, text);
   }
 
   async generateQA(text) {
-    const prompt = 'Generate comprehensive exam-style questions with detailed answers based on the following text. Create exactly 6 questions: 2 multiple choice, 2 short answer, and 2 essay questions. Format each as:\n\n**Question [number]: [Type]**\n[Question text]\n\n**Answer:**\n[Detailed answer]\n\nEnsure proper formatting with clear question numbers, types, and complete answers. Do not include "Answer not found" or incomplete responses.';
+    const prompt = `Generate 6 comprehensive questions based on this text. Format each question and answer clearly:
+
+**Question 1 (Multiple Choice):** [Clear question about the main topic]
+A) [Option A]
+B) [Option B] 
+C) [Option C]
+D) [Option D]
+**Answer:** [Correct option letter and explanation]
+
+**Question 2 (Multiple Choice):** [Question about key concepts]
+A) [Option A]
+B) [Option B]
+C) [Option C]
+D) [Option D]
+**Answer:** [Correct option letter and explanation]
+
+**Question 3 (Short Answer):** [Question requiring brief explanation]
+**Answer:** [Concise answer with key points]
+
+**Question 4 (Short Answer):** [Question about applications or implications]
+**Answer:** [Concise answer with examples]
+
+**Question 5 (Essay):** [Question requiring detailed analysis]
+**Answer:** [Comprehensive answer with reasoning]
+
+**Question 6 (Essay):** [Question about evaluation or comparison]
+**Answer:** [Detailed answer with supporting arguments]
+
+Text: ${text.substring(0, 4000)}`;
     
     return await this.makeRequest(prompt, text);
   }
