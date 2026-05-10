@@ -37,6 +37,8 @@ const FileUpload = ({ onTextProcessed }) => {
   }, [handleFile]);
 
   const handleFile = useCallback(async (file) => {
+    console.log('handleFile called with:', file.name, file.type);
+    
     const allowedTypes = [
       'application/pdf',
       'application/msword',
@@ -46,32 +48,40 @@ const FileUpload = ({ onTextProcessed }) => {
     ];
 
     if (!allowedTypes.includes(file.type)) {
+      console.log('File type not allowed:', file.type);
       setError('Please upload a PDF, Word, or PowerPoint file');
       return;
     }
 
     if (file.size > 50 * 1024 * 1024) { // 50MB limit
+      console.log('File size too large:', file.size);
       setError('File size must be less than 50MB');
       return;
     }
 
+    console.log('Starting file upload...');
     setError('');
     setUploading(true);
     setUploadedFile(file.name);
 
     try {
       if (file.type === 'application/pdf') {
+        console.log('Uploading PDF...');
         const result = await uploadPDF(file);
+        console.log('PDF upload result:', result);
         onTextProcessed(result.text);
       } else {
+        console.log('Uploading document...');
         const result = await processDocument(file);
+        console.log('Document upload result:', result);
         onTextProcessed(result.text);
       }
     } catch (err) {
-      setError('Failed to process document. Please try again.');
       console.error('Upload error:', err);
+      setError('Failed to process document. Please try again.');
       setUploadedFile(null);
     } finally {
+      console.log('Finally block - setting uploading to false');
       setUploading(false);
     }
   }, [onTextProcessed]);
