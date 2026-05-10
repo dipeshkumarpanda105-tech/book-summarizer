@@ -31,19 +31,12 @@ const FileUpload = ({ onTextProcessed }) => {
   }, []);
 
   const handleChange = useCallback((e) => {
-    console.log('File input change event triggered');
-    console.log('Files selected:', e.target.files);
     if (e.target.files && e.target.files[0]) {
-      console.log('Calling handleFile with:', e.target.files[0]);
       handleFile(e.target.files[0]);
-    } else {
-      console.log('No files selected');
     }
   }, []);
 
   const handleFile = async (file) => {
-    console.log('File selected:', file.name, 'Type:', file.type, 'Size:', file.size);
-    
     const allowedTypes = [
       'application/pdf',
       'application/msword',
@@ -53,18 +46,15 @@ const FileUpload = ({ onTextProcessed }) => {
     ];
 
     if (!allowedTypes.includes(file.type)) {
-      console.log('File type not allowed:', file.type);
       setError('Please upload a PDF, Word, or PowerPoint file');
       return;
     }
 
     if (file.size > 50 * 1024 * 1024) { // 50MB limit
-      console.log('File size too large:', file.size);
       setError('File size must be less than 50MB');
       return;
     }
 
-    console.log('File validation passed, starting upload...');
     setError('');
     setUploading(true);
     setUploadedFile(file.name);
