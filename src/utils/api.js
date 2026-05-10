@@ -2,7 +2,7 @@ import axios from 'axios';
 
 // Create axios instance with base configuration
 const api = axios.create({
-  baseURL: process.env.REACT_APP_API_URL || 'https://book-summarizer-qus7.onrender.com/api',
+  baseURL: process.env.REACT_APP_API_URL || 'http://localhost:5000/api',
   timeout: 300000, // 5 minutes timeout for large text processing
   headers: {
     'Content-Type': 'application/json',
@@ -52,18 +52,12 @@ api.interceptors.response.use(
   }
 );
 
-// Create separate axios instance for file uploads
-const fileApi = axios.create({
-  baseURL: process.env.REACT_APP_API_URL || 'https://book-summarizer.onrender.com/api',
-  timeout: 300000,
-});
-
 // File upload function for PDFs
 export const uploadPDF = async (file) => {
   const formData = new FormData();
   formData.append('file', file);
   
-  return await fileApi.post('/upload', formData, {
+  return await api.post('/upload', formData, {
     headers: {
       'Content-Type': 'multipart/form-data',
     },
@@ -105,7 +99,7 @@ export const processDocument = async (file) => {
   const formData = new FormData();
   formData.append('file', file);
   
-  return await fileApi.post('/document', formData, {
+  return await api.post('/document', formData, {
     headers: {
       'Content-Type': 'multipart/form-data',
     },

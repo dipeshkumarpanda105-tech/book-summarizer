@@ -25,15 +25,25 @@ function App() {
   const [activeTab, setActiveTab] = useState('input');
 
   const handleTextProcessed = (text) => {
+    console.log('=== handleTextProcessed called ===');
+    console.log('Text received:', text ? text.substring(0, 100) + '...' : 'null');
+    console.log('Current activeTab before switch:', activeTab);
+    
     setCurrentText(text);
+    console.log('setCurrentText called, new currentText length:', text ? text.length : 0);
+    
     setResults({
       summary: null,
       keyPoints: null,
       flashcards: null,
       qa: null
     });
+    console.log('setResults called with cleared results');
+    
     setError('');
+    console.log('setActiveTab called with "results"');
     setActiveTab('results');
+    console.log('=== handleTextProcessed completed ===');
   };
 
   const handleSummarize = async (type = 'short') => {

@@ -20,6 +20,56 @@ const FileUpload = ({ onTextProcessed }) => {
     }
   }, []);
 
+  const handleFile = useCallback(async (file) => {
+    console.log('handleFile called with file:', file.name, 'type:', file.type, 'size:', file.size);
+    
+    const allowedTypes = [
+      'application/pdf',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      'application/vnd.ms-powerpoint',
+      'application/vnd.openxmlformats-officedocument.presentationml.presentation'
+    ];
+
+    if (!allowedTypes.includes(file.type)) {
+      console.error('File type not allowed:', file.type);
+      setError('Please upload a PDF, Word, or PowerPoint file');
+      return;
+    }
+
+    if (file.size > 50 * 1024 * 1024) { // 50MB limit
+      console.error('File too large:', file.size, 'bytes');
+      setError('File size must be less than 50MB');
+      return;
+    }
+
+    console.log('Starting file processing...');
+    setError('');
+    setUploading(true);
+    setUploadedFile(file.name);
+
+    try {
+      if (file.type === 'application/pdf') {
+        console.log('Processing PDF file...');
+        const result = await uploadPDF(file);
+        console.log('PDF processing result:', result);
+        onTextProcessed(result.text);
+      } else {
+        console.log('Processing document file...');
+        const result = await processDocument(file);
+        console.log('Document processing result:', result);
+        onTextProcessed(result.text);
+      }
+    } catch (err) {
+      console.error('Upload error:', err);
+      setError('Failed to process document. Please try again.');
+      setUploadedFile(null);
+    } finally {
+      console.log('File processing completed');
+      setUploading(false);
+    }
+  }, [onTextProcessed]);
+
   const handleDrop = useCallback((e) => {
     e.preventDefault();
     e.stopPropagation();
@@ -31,60 +81,11 @@ const FileUpload = ({ onTextProcessed }) => {
   }, [handleFile]);
 
   const handleChange = useCallback((e) => {
+    e.preventDefault();
     if (e.target.files && e.target.files[0]) {
       handleFile(e.target.files[0]);
     }
   }, [handleFile]);
-
-  const handleFile = useCallback(async (file) => {
-    console.log('handleFile called with:', file.name, file.type);
-    
-    const allowedTypes = [
-      'application/pdf',
-      'application/msword',
-      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
-      'application/vnd.ms-powerpoint',
-      'application/vnd.openxmlformats-officedocument.presentationml.presentation'
-    ];
-
-    if (!allowedTypes.includes(file.type)) {
-      console.log('File type not allowed:', file.type);
-      setError('Please upload a PDF, Word, or PowerPoint file');
-      return;
-    }
-
-    if (file.size > 50 * 1024 * 1024) { // 50MB limit
-      console.log('File size too large:', file.size);
-      setError('File size must be less than 50MB');
-      return;
-    }
-
-    console.log('Starting file upload...');
-    setError('');
-    setUploading(true);
-    setUploadedFile(file.name);
-
-    try {
-      if (file.type === 'application/pdf') {
-        console.log('Uploading PDF...');
-        const result = await uploadPDF(file);
-        console.log('PDF upload result:', result);
-        onTextProcessed(result.text);
-      } else {
-        console.log('Uploading document...');
-        const result = await processDocument(file);
-        console.log('Document upload result:', result);
-        onTextProcessed(result.text);
-      }
-    } catch (err) {
-      console.error('Upload error:', err);
-      setError('Failed to process document. Please try again.');
-      setUploadedFile(null);
-    } finally {
-      console.log('Finally block - setting uploading to false');
-      setUploading(false);
-    }
-  }, [onTextProcessed]);
 
   const handleYouTubeSubmit = async (e) => {
     e.preventDefault();
@@ -195,15 +196,16 @@ const FileUpload = ({ onTextProcessed }) => {
           onDragOver={handleDrag}
           onDrop={handleDrop}
         >
-          <input
-            type="file"
-            id="file-upload"
-            className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
-            accept=".pdf,.doc,.docx,.ppt,.pptx"
-            onChange={handleChange}
-            disabled={uploading}
-            onClick={(e) => e.target.value = ''}
-          />
+          <label htmlFor="file-upload" className="absolute inset-0 w-full h-full cursor-pointer flex items-center justify-center">
+            <input
+              type="file"
+              id="file-upload"
+              className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+              accept=".pdf,.doc,.docx,.ppt,.pptx"
+              onChange={(e) => handleChange(e)}
+              disabled={uploading}
+            />
+          </label>
 
           {!uploadedFile && !uploading && (
             <>
@@ -224,15 +226,16 @@ const FileUpload = ({ onTextProcessed }) => {
           )}
 
           {uploadedFile && !uploading && (
-            <div className="flex flex-col items-center animate-fade-in">
-              <CheckCircle className="w-12 h-12 text-green-500 mb-4" />
-              <div className="text-gray-700 font-medium">{uploadedFile}</div>
-              <div className="text-sm text-gray-500 mt-1">File processed successfully</div>
+            <div className="mt-4 flex items-center justify-between">
+              <div className="flex items-center">
+                <CheckCircle className="w-5 h-5 text-green-500 mr-2" />
+                <span className="font-medium text-gray-700">{uploadedFile}</span>
+              </div>
               <button
                 onClick={clearFile}
-                className="mt-4 text-sm text-primary-600 hover:text-primary-700 font-medium"
+                className="text-red-500 hover:text-red-700 text-sm font-medium"
               >
-                Upload different file
+                <X className="w-4 h-4 inline" />
               </button>
             </div>
           )}
@@ -241,65 +244,48 @@ const FileUpload = ({ onTextProcessed }) => {
 
       {/* YouTube Tab */}
       {activeTab === 'youtube' && (
-        <div className="bg-gray-50 rounded-lg p-6">
-          <form onSubmit={handleYouTubeSubmit} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                YouTube Video URL
-              </label>
+        <div className="border-2 border-dashed rounded-lg p-6">
+          <div className="mb-4">
+            <label htmlFor="youtube-url" className="block text-sm font-medium text-gray-700 mb-2">
+              YouTube URL
+            </label>
+            <div className="relative">
               <input
-                type="url"
+                type="text"
+                id="youtube-url"
                 value={youtubeUrl}
                 onChange={(e) => setYoutubeUrl(e.target.value)}
-                placeholder="https://www.youtube.com/watch?v=..."
-                className="input-field"
+                placeholder="https://www.youtube.com/watch?v=VIDEO_ID"
+                className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-primary-500"
                 disabled={uploading}
               />
             </div>
+          </div>
 
-            <button
-              type="submit"
-              disabled={uploading || !youtubeUrl.trim()}
-              className="btn-primary w-full disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {uploading ? (
-                <>
-                  <div className="loading-spinner mr-2"></div>
-                  Processing YouTube video...
-                </>
-              ) : (
-                <>
-                  <Youtube className="w-4 h-4 mr-2" />
-                  Extract Transcript
-                </>
-              )}
-            </button>
-          </form>
+          <button
+            onClick={handleYouTubeSubmit}
+            disabled={uploading}
+            className="w-full bg-primary-600 text-white py-2 px-4 rounded-md hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:bg-gray-400 disabled:cursor-not-allowed transition-colors duration-200"
+          >
+            {uploading ? (
+              <>
+                <div className="loading-spinner inline-block w-4 h-4 mr-2"></div>
+                Processing...
+              </>
+            ) : (
+              <>
+                <Youtube className="w-4 h-4 mr-2" />
+                Process YouTube Video
+              </>
+            )}
+          </button>
 
-          {uploadedFile && !uploading && (
-            <div className="mt-4 p-4 bg-green-50 border border-green-200 rounded-lg animate-fade-in">
-              <div className="flex items-center">
-                <CheckCircle className="w-5 h-5 text-green-600 mr-2" />
-                <div>
-                  <div className="text-green-800 font-medium">YouTube video processed successfully</div>
-                  <div className="text-sm text-green-700 mt-1">{uploadedFile}</div>
-                </div>
-              </div>
-              <button
-                onClick={clearFile}
-                className="mt-3 text-sm text-green-600 hover:text-green-700 font-medium"
-              >
-                Process another video
-              </button>
+          {error && (
+            <div className="mt-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg flex items-center">
+              <X className="w-4 h-4 mr-2" />
+              {error}
             </div>
           )}
-        </div>
-      )}
-
-      {error && (
-        <div className="mt-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg flex items-center">
-          <X className="w-4 h-4 mr-2" />
-          {error}
         </div>
       )}
 
