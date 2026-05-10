@@ -4,7 +4,7 @@ import TextInput from './components/TextInput';
 import ResultDisplay from './components/ResultDisplay';
 import ActionButtons from './components/ActionButtons';
 import Header from './components/Header';
-import { processText, summarizeText, extractKeyPoints, generateFlashcards, generateQA } from './utils/api';
+import { summarizeText, extractKeyPoints, generateFlashcards, generateQA } from './utils/api';
 import './index.css';
 
 function App() {

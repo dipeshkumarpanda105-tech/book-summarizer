@@ -28,15 +28,15 @@ const FileUpload = ({ onTextProcessed }) => {
     if (e.dataTransfer.files && e.dataTransfer.files[0]) {
       handleFile(e.dataTransfer.files[0]);
     }
-  }, []);
+  }, [handleFile]);
 
   const handleChange = useCallback((e) => {
     if (e.target.files && e.target.files[0]) {
       handleFile(e.target.files[0]);
     }
-  }, []);
+  }, [handleFile]);
 
-  const handleFile = async (file) => {
+  const handleFile = useCallback(async (file) => {
     const allowedTypes = [
       'application/pdf',
       'application/msword',
@@ -74,7 +74,7 @@ const FileUpload = ({ onTextProcessed }) => {
     } finally {
       setUploading(false);
     }
-  };
+  }, [onTextProcessed]);
 
   const handleYouTubeSubmit = async (e) => {
     e.preventDefault();
