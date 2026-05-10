@@ -2,7 +2,7 @@ import axios from 'axios';
 
 // Create axios instance with base configuration
 const api = axios.create({
-  baseURL: process.env.REACT_APP_API_URL || 'https://book-summarizer.onrender.com/api',
+  baseURL: process.env.REACT_APP_API_URL || 'https://book-summarizer-qus7.onrender.com/api',
   timeout: 300000, // 5 minutes timeout for large text processing
   headers: {
     'Content-Type': 'application/json',
