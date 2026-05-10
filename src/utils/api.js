@@ -52,12 +52,18 @@ api.interceptors.response.use(
   }
 );
 
+// Create separate axios instance for file uploads
+const fileApi = axios.create({
+  baseURL: process.env.REACT_APP_API_URL || 'https://book-summarizer.onrender.com/api',
+  timeout: 300000,
+});
+
 // File upload function for PDFs
 export const uploadPDF = async (file) => {
   const formData = new FormData();
   formData.append('file', file);
   
-  return await api.post('/upload', formData, {
+  return await fileApi.post('/upload', formData, {
     headers: {
       'Content-Type': 'multipart/form-data',
     },
@@ -99,7 +105,7 @@ export const processDocument = async (file) => {
   const formData = new FormData();
   formData.append('file', file);
   
-  return await api.post('/document', formData, {
+  return await fileApi.post('/document', formData, {
     headers: {
       'Content-Type': 'multipart/form-data',
     },
